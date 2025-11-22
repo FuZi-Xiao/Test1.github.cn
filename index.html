@@ -1,19 +1,486 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-     <meta charset="UTF-8">
+    <meta charset="UTF-8">
+    <title>微波拓扑管理工具</title>
     <style>
-        /* CSS规则 */
-        body {
-            background-color: #f0f0f0; /* 设置页面背景颜色为浅灰色 */
+        :root {
+            --panel-bg: #ffffff;
+            --panel-border: #d0d7de;
+            --accent: #2563eb;
+            --muted: #6b7280;
+            --canvas-bg: #f8fafc;
         }
-        h1 {
-            color: blue; /* 设置所有<h1>标签的文本颜色为蓝色 */
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+            background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%);
+            color: #0f172a;
+        }
+
+        header {
+            padding: 20px 24px;
+            background: #0f172a;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 20px;
+            letter-spacing: 0.5px;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 16px;
+            padding: 16px;
+            height: calc(100vh - 72px);
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 10px;
+            padding: 16px;
+            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
+        }
+
+        .panel h2 {
+            margin: 0 0 12px 0;
+            font-size: 16px;
+            color: #0f172a;
+        }
+
+        .panel section + section {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        label {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-size: 13px;
+            color: #334155;
+            margin-bottom: 10px;
+        }
+
+        input[type="text"], select, input[type="number"] {
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            font-size: 14px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input[type="text"]:focus, select:focus, input[type="number"]:focus {
+            border-color: var(--accent);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+        }
+
+        button {
+            padding: 10px 12px;
+            border: none;
+            border-radius: 8px;
+            background: var(--accent);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.1s ease, box-shadow 0.2s ease;
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        button.secondary {
+            background: #0f172a;
+        }
+
+        button.danger {
+            background: #dc2626;
+        }
+
+        .canvas-wrapper {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 10px;
+            padding: 12px;
+            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
+            position: relative;
+        }
+
+        #board {
+            width: 100%;
+            height: calc(100vh - 120px);
+            background: var(--canvas-bg);
+            border-radius: 8px;
+            border: 1px dashed #cbd5e1;
+            cursor: crosshair;
+        }
+
+        .hint {
+            font-size: 12px;
+            color: var(--muted);
+            margin: 4px 0 10px 0;
+        }
+
+        .inline {
+            display: flex;
+            gap: 10px;
+        }
+
+        .inline label {
+            flex: 1;
+        }
+
+        .status {
+            font-size: 12px;
+            color: #0f172a;
+            background: #e0f2fe;
+            border: 1px solid #bae6fd;
+            padding: 8px 10px;
+            border-radius: 8px;
+            margin-top: 12px;
+        }
+
+        .export-area {
+            width: 100%;
+            min-height: 140px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            padding: 10px;
+            font-family: "Fira Code", Consolas, monospace;
+            background: #0f172a;
+            color: #e2e8f0;
+            resize: vertical;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            background: #eef2ff;
+            color: #312e81;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
         }
     </style>
 </head>
 <body>
-    <h1>这是一个标题</h1> <!-- 这个<h1>标签的文本颜色会被设置为蓝色 -->
-    <p>这是一个段落。</p>
+<header>
+    <h1>微波拓扑管理工具</h1>
+    <div class="pill">画板模式 · 点击画布放置站点</div>
+</header>
+<div class="container">
+    <div class="panel">
+        <h2>站点管理</h2>
+        <section>
+            <label>
+                站点名称
+                <input id="siteName" type="text" placeholder="例如：站点 A" />
+            </label>
+            <div class="inline">
+                <label>
+                    形状
+                    <select id="siteShape">
+                        <option value="circle">圆形</option>
+                        <option value="square">方形</option>
+                        <option value="triangle">三角</option>
+                    </select>
+                </label>
+                <label>
+                    尺寸 (px)
+                    <input id="siteSize" type="number" min="8" max="80" value="28" />
+                </label>
+            </div>
+            <button id="addSite">准备新增站点</button>
+            <p class="hint">点击画布即可完成放置。每次放置都会使用当前配置。</p>
+        </section>
+        <section>
+            <label>
+                删除站点
+                <select id="deleteSite"></select>
+            </label>
+            <button class="danger" id="removeSite">删除选中站点</button>
+        </section>
+    </div>
+    <div class="panel">
+        <h2>链路管理</h2>
+        <section class="inline">
+            <label>
+                起点站
+                <select id="linkStart"></select>
+            </label>
+            <label>
+                终点站
+                <select id="linkEnd"></select>
+            </label>
+        </section>
+        <section class="inline">
+            <label>
+                线型
+                <select id="lineStyle">
+                    <option value="solid">实线</option>
+                    <option value="dashed">虚线</option>
+                    <option value="dotted">点线</option>
+                </select>
+            </label>
+            <label>
+                粗细 (px)
+                <input id="lineWidth" type="number" min="1" max="10" value="3" />
+            </label>
+        </section>
+        <section>
+            <button id="createLink">新建链路</button>
+            <p class="hint">起点和终点可以相同形状的不同站点，创建后会立即在画布上展示。</p>
+        </section>
+        <section>
+            <h2>导出</h2>
+            <button class="secondary" id="exportAll">一键导出链路与站点</button>
+            <textarea id="exportArea" class="export-area" readonly></textarea>
+        </section>
+        <div class="status" id="status">提示：点击“准备新增站点”后在画布放置节点。</div>
+    </div>
+</div>
+<div class="canvas-wrapper">
+    <canvas id="board"></canvas>
+</div>
+<script>
+    const canvas = document.getElementById('board');
+    const ctx = canvas.getContext('2d');
+    let width = canvas.clientWidth;
+    let height = canvas.clientHeight;
+    canvas.width = width;
+    canvas.height = height;
+
+    const sites = [];
+    const links = [];
+
+    const state = {
+        pendingSite: null,
+    };
+
+    const siteNameInput = document.getElementById('siteName');
+    const siteShapeInput = document.getElementById('siteShape');
+    const siteSizeInput = document.getElementById('siteSize');
+    const deleteSiteSelect = document.getElementById('deleteSite');
+    const linkStartSelect = document.getElementById('linkStart');
+    const linkEndSelect = document.getElementById('linkEnd');
+    const lineStyleSelect = document.getElementById('lineStyle');
+    const lineWidthInput = document.getElementById('lineWidth');
+    const exportArea = document.getElementById('exportArea');
+    const statusEl = document.getElementById('status');
+
+    function updateCanvasSize() {
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        width = rect.width;
+        height = rect.height;
+        draw();
+    }
+
+    window.addEventListener('resize', updateCanvasSize);
+
+    function setStatus(message) {
+        statusEl.textContent = message;
+    }
+
+    function updateSelectors() {
+        const selects = [deleteSiteSelect, linkStartSelect, linkEndSelect];
+        selects.forEach(sel => {
+            const current = sel.value;
+            sel.innerHTML = '';
+            sites.forEach(site => {
+                const option = document.createElement('option');
+                option.value = site.id;
+                option.textContent = `${site.name} (#${site.id})`;
+                sel.appendChild(option);
+            });
+            if (current) {
+                sel.value = current;
+            }
+        });
+    }
+
+    function drawSite(site) {
+        ctx.save();
+        ctx.translate(site.x, site.y);
+        ctx.fillStyle = '#2563eb';
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 2;
+        const size = site.size;
+        switch (site.shape) {
+            case 'circle':
+                ctx.beginPath();
+                ctx.arc(0, 0, size / 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                break;
+            case 'square':
+                ctx.beginPath();
+                ctx.rect(-size / 2, -size / 2, size, size);
+                ctx.fill();
+                ctx.stroke();
+                break;
+            case 'triangle':
+                ctx.beginPath();
+                ctx.moveTo(0, -size / 2);
+                ctx.lineTo(-size / 2, size / 2);
+                ctx.lineTo(size / 2, size / 2);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                break;
+        }
+        ctx.fillStyle = '#0f172a';
+        ctx.font = '12px "Segoe UI"';
+        ctx.textAlign = 'center';
+        ctx.fillText(site.name, 0, size);
+        ctx.restore();
+    }
+
+    function drawLink(link) {
+        const start = sites.find(s => s.id === link.startId);
+        const end = sites.find(s => s.id === link.endId);
+        if (!start || !end) return;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(start.x, start.y);
+        ctx.lineTo(end.x, end.y);
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = link.lineWidth;
+        if (link.lineStyle === 'dashed') {
+            ctx.setLineDash([10, 6]);
+        } else if (link.lineStyle === 'dotted') {
+            ctx.setLineDash([3, 6]);
+        } else {
+            ctx.setLineDash([]);
+        }
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, width, height);
+        links.forEach(drawLink);
+        sites.forEach(drawSite);
+    }
+
+    function generateId(list) {
+        return list.length ? Math.max(...list.map(item => item.id)) + 1 : 1;
+    }
+
+    function placeSite(x, y) {
+        const name = siteNameInput.value.trim() || `站点 ${sites.length + 1}`;
+        const shape = siteShapeInput.value;
+        const size = Math.min(Math.max(parseInt(siteSizeInput.value, 10) || 28, 8), 80);
+        const newSite = { id: generateId(sites), name, shape, size, x, y };
+        sites.push(newSite);
+        updateSelectors();
+        draw();
+        setStatus(`已添加站点 ${name}，ID: ${newSite.id}`);
+    }
+
+    document.getElementById('addSite').addEventListener('click', () => {
+        state.pendingSite = true;
+        setStatus('已进入放置模式：在画布点击即可添加站点。');
+    });
+
+    canvas.addEventListener('click', (event) => {
+        if (!state.pendingSite) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        placeSite(x, y);
+    });
+
+    document.getElementById('removeSite').addEventListener('click', () => {
+        const targetId = Number(deleteSiteSelect.value);
+        if (!targetId) {
+            setStatus('没有可删除的站点。');
+            return;
+        }
+        const idx = sites.findIndex(s => s.id === targetId);
+        if (idx >= 0) {
+            const [removed] = sites.splice(idx, 1);
+            // 同时删除相关链路
+            for (let i = links.length - 1; i >= 0; i -= 1) {
+                if (links[i].startId === targetId || links[i].endId === targetId) {
+                    links.splice(i, 1);
+                }
+            }
+            updateSelectors();
+            draw();
+            setStatus(`已删除站点 ${removed.name} 以及相关链路。`);
+        }
+    });
+
+    document.getElementById('createLink').addEventListener('click', () => {
+        const startId = Number(linkStartSelect.value);
+        const endId = Number(linkEndSelect.value);
+        if (!startId || !endId) {
+            setStatus('请先创建至少两个站点。');
+            return;
+        }
+        if (startId === endId) {
+            setStatus('链路的起点和终点需要是不同站点。');
+            return;
+        }
+        const lineStyle = lineStyleSelect.value;
+        const lineWidth = Math.min(Math.max(parseInt(lineWidthInput.value, 10) || 2, 1), 10);
+        links.push({ id: generateId(links), startId, endId, lineStyle, lineWidth });
+        draw();
+        setStatus(`已创建链路 #${links.length}，${startId} → ${endId}`);
+    });
+
+    document.getElementById('exportAll').addEventListener('click', () => {
+        const exportPayload = {
+            generatedAt: new Date().toISOString(),
+            siteCount: sites.length,
+            linkCount: links.length,
+            sites: sites.map(s => ({
+                id: s.id,
+                name: s.name,
+                shape: s.shape,
+                size: s.size,
+                x: Math.round(s.x),
+                y: Math.round(s.y),
+            })),
+            links: links.map(l => ({
+                id: l.id,
+                startId: l.startId,
+                endId: l.endId,
+                lineStyle: l.lineStyle,
+                lineWidth: l.lineWidth,
+            })),
+        };
+        const json = JSON.stringify(exportPayload, null, 2);
+        exportArea.value = json;
+        exportArea.focus();
+        exportArea.select();
+        setStatus('导出已生成，可复制。');
+    });
+
+    updateSelectors();
+    draw();
+</script>
 </body>
 </html>
