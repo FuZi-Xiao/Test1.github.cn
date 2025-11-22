@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>贪吃蛇</title>
+  <title>马里奥风贪吃蛇</title>
   <style>
     :root {
       --bg: #0f172a;
@@ -29,7 +29,7 @@
         sans-serif;
       background: radial-gradient(circle at 20% 20%, rgba(34, 211, 238, 0.08), transparent 30%),
         radial-gradient(circle at 80% 0%, rgba(244, 114, 182, 0.08), transparent 35%),
-        var(--bg);
+        linear-gradient(145deg, #0b1224, #0f172a);
       color: var(--text);
       padding: 16px;
     }
@@ -74,9 +74,14 @@
       aspect-ratio: 1;
       border-radius: 12px;
       display: block;
-      background: radial-gradient(circle at 20% 20%, rgba(34, 211, 238, 0.06), transparent 30%),
-        radial-gradient(circle at 80% 0%, rgba(244, 114, 182, 0.06), transparent 40%),
-        #0f172a;
+      background: linear-gradient(180deg, #12203a 0%, #0f172a 70%),
+        repeating-linear-gradient(
+          -45deg,
+          rgba(255, 255, 255, 0.03) 0,
+          rgba(255, 255, 255, 0.03) 8px,
+          rgba(255, 255, 255, 0) 8px,
+          rgba(255, 255, 255, 0) 16px
+        );
       border: 1px solid rgba(255, 255, 255, 0.04);
     }
 
@@ -209,8 +214,8 @@
   <div class="card">
     <div>
       <header>
-        <h1>贪吃蛇 · Snake</h1>
-        <p class="subtitle">键盘或屏幕方向键控制移动，吃到能量点来增长，别碰墙和自己！</p>
+        <h1>马里奥风 · 贪吃蛇</h1>
+        <p class="subtitle">经典玩法 + 马里奥配色，吃到金币加分，加速冲刺！背景音乐致敬塞尔达。</p>
       </header>
 
       <div class="board-wrapper">
@@ -284,6 +289,23 @@
     let running = false;
     let animationFrameId = null;
 
+    // --- 音效 & 背景音乐 ---
+    let audioCtx = null;
+    let musicInterval = null;
+
+    const zeldaTheme = [
+      // 频率 (Hz), 持续时间 (ms)
+      [659, 200],
+      [784, 200],
+      [988, 300],
+      [880, 180],
+      [988, 220],
+      [1047, 400],
+      [784, 220],
+      [880, 220],
+      [988, 400],
+    ];
+
     const bestScore = () => Number(localStorage.getItem("snake_best") || 0);
     const setBestScore = (value) => localStorage.setItem("snake_best", String(value));
 
@@ -328,6 +350,57 @@
       ctx.fillRect(x * cell + 1, y * cell + 1, cell - 2, cell - 2);
     }
 
+    function drawMarioSegment(segment, index) {
+      const x = segment.x * cell;
+      const y = segment.y * cell;
+      const padding = 3;
+      const baseX = x + padding;
+      const baseY = y + padding;
+      const size = cell - padding * 2;
+
+      const isHead = index === 0;
+      // 身体：蓝色背带裤
+      ctx.fillStyle = isHead ? "#f87171" : "#1d4ed8";
+      ctx.beginPath();
+      if (ctx.roundRect) {
+        ctx.roundRect(baseX, baseY, size, size, 6);
+      } else {
+        ctx.rect(baseX, baseY, size, size);
+      }
+      ctx.fill();
+
+      // 头部与帽子细节
+      if (isHead) {
+        ctx.fillStyle = "#fbbf24";
+        ctx.fillRect(baseX + size * 0.22, baseY + size * 0.32, size * 0.56, size * 0.4);
+
+        ctx.fillStyle = "#ef4444";
+        ctx.fillRect(baseX + size * 0.18, baseY + size * 0.12, size * 0.64, size * 0.26);
+
+        ctx.fillStyle = "#0b1220";
+        ctx.beginPath();
+        ctx.arc(baseX + size * 0.42, baseY + size * 0.48, size * 0.08, 0, Math.PI * 2);
+        ctx.arc(baseX + size * 0.58, baseY + size * 0.48, size * 0.08, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#fef3c7";
+        ctx.fillRect(baseX + size * 0.36, baseY + size * 0.58, size * 0.28, size * 0.14);
+
+        ctx.fillStyle = "#0f172a";
+        ctx.fillRect(baseX + size * 0.3, baseY + size * 0.6, size * 0.4, size * 0.08);
+      } else {
+        ctx.fillStyle = "#22d3ee";
+        ctx.fillRect(baseX + size * 0.25, baseY + size * 0.25, size * 0.5, size * 0.5);
+      }
+
+      // 金色纽扣
+      ctx.fillStyle = "#facc15";
+      ctx.beginPath();
+      ctx.arc(baseX + size * 0.35, baseY + size * 0.72, size * 0.07, 0, Math.PI * 2);
+      ctx.arc(baseX + size * 0.65, baseY + size * 0.72, size * 0.07, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     function drawGrid() {
       ctx.strokeStyle = "rgba(255,255,255,0.04)";
       ctx.lineWidth = 1;
@@ -349,13 +422,30 @@
       drawGrid();
 
       snake.forEach((segment, index) => {
-        const opacity = 1 - index * 0.05;
-        const color = `rgba(34, 211, 238, ${Math.max(0.3, opacity)})`;
-        drawCell(segment.x, segment.y, color);
+        drawMarioSegment(segment, index);
       });
 
       if (food) {
-        drawCell(food.x, food.y, "#f472b6");
+        // 金币：黄色圆形带闪光
+        const radius = cell * 0.35;
+        const centerX = food.x * cell + cell / 2;
+        const centerY = food.y * cell + cell / 2;
+        const gradient = ctx.createRadialGradient(
+          centerX - radius * 0.2,
+          centerY - radius * 0.2,
+          radius * 0.3,
+          centerX,
+          centerY,
+          radius
+        );
+        gradient.addColorStop(0, "#fef08a");
+        gradient.addColorStop(1, "#d97706");
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+        ctx.fillRect(centerX - radius * 0.12, centerY - radius * 0.5, radius * 0.24, radius);
       }
     }
 
@@ -392,7 +482,8 @@
         score += 10;
         speed = Math.max(60, speed - 4);
         placeFood();
-        messageEl.textContent = "太棒了！速度提升~";
+        messageEl.textContent = "吃到金币！速度 +";
+        playCoin();
       } else {
         snake.pop();
       }
@@ -421,7 +512,9 @@
 
     function endGame() {
       running = false;
-      messageEl.textContent = "撞了！按重新开始或 R 再试一次";
+      messageEl.textContent = "撞啦！按重新开始或 R 再试一次";
+      playHit();
+      stopMusic();
       cancelAnimationFrame(animationFrameId);
     }
 
@@ -429,12 +522,14 @@
       if (running) return;
       running = true;
       messageEl.textContent = "";
+      startMusic();
       animationFrameId = requestAnimationFrame(step);
     }
 
     function pauseGame() {
       running = false;
       messageEl.textContent = "已暂停";
+      stopMusic();
     }
 
     function restartGame() {
@@ -472,6 +567,58 @@
         }
       });
     });
+
+    function ensureAudioCtx() {
+      if (!audioCtx) {
+        audioCtx = new AudioContext();
+      }
+      if (audioCtx.state === "suspended") {
+        audioCtx.resume();
+      }
+    }
+
+    function playTone(frequency, duration, type = "square", gain = 0.12) {
+      ensureAudioCtx();
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.value = frequency;
+      g.gain.value = gain;
+      osc.connect(g).connect(audioCtx.destination);
+      osc.start();
+      g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration / 1000);
+      osc.stop(audioCtx.currentTime + duration / 1000);
+    }
+
+    function playCoin() {
+      playTone(1046, 140, "square", 0.18);
+      setTimeout(() => playTone(1318, 120, "square", 0.14), 70);
+    }
+
+    function playHit() {
+      playTone(98, 200, "sawtooth", 0.2);
+      setTimeout(() => playTone(65, 260, "sawtooth", 0.14), 80);
+    }
+
+    function startMusic() {
+      ensureAudioCtx();
+      if (musicInterval) return;
+      let index = 0;
+      const playNote = () => {
+        const [freq, duration] = zeldaTheme[index];
+        playTone(freq, duration * 0.9, "triangle", 0.08);
+        index = (index + 1) % zeldaTheme.length;
+      };
+      playNote();
+      musicInterval = setInterval(playNote, 220);
+    }
+
+    function stopMusic() {
+      if (musicInterval) {
+        clearInterval(musicInterval);
+        musicInterval = null;
+      }
+    }
 
     resetGame();
     draw();
