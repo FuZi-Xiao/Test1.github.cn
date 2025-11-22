@@ -204,6 +204,49 @@
             gap: 16px;
         }
 
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 10;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+            width: min(420px, 90vw);
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 16px;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
         .mode-buttons {
             display: flex;
             gap: 8px;
@@ -355,6 +398,72 @@
         </div>
     </div>
 </div>
+<div id="editModal" class="modal" aria-hidden="true">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 id="modalTitle">编辑元素</h3>
+            <button id="closeModal" class="secondary">关闭</button>
+        </div>
+        <form id="modalForm">
+            <label>
+                名称
+                <input id="modalName" type="text" required />
+            </label>
+            <div class="inline" data-type="site">
+                <label>
+                    形状
+                    <select id="modalShape">
+                        <option value="circle">圆形</option>
+                        <option value="square">方形</option>
+                        <option value="triangle">三角</option>
+                    </select>
+                </label>
+                <label>
+                    尺寸 (px)
+                    <input id="modalSize" type="number" min="8" max="80" />
+                </label>
+            </div>
+            <label data-type="site">
+                填充颜色
+                <input id="modalColorSite" type="color" />
+            </label>
+            <div data-type="link">
+                <div class="inline">
+                    <label>
+                        起点
+                        <select id="modalStart"></select>
+                    </label>
+                    <label>
+                        终点
+                        <select id="modalEnd"></select>
+                    </label>
+                </div>
+                <div class="inline">
+                    <label>
+                        粗细 (px)
+                        <input id="modalLineWidth" type="number" min="1" max="10" />
+                    </label>
+                    <label>
+                        线型
+                        <select id="modalLineStyle">
+                            <option value="solid">实线</option>
+                            <option value="dashed">虚线</option>
+                            <option value="dotted">点线</option>
+                        </select>
+                    </label>
+                </div>
+                <label>
+                    颜色
+                    <input id="modalColorLink" type="color" />
+                </label>
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="cancelModal" class="secondary">取消</button>
+                <button type="submit">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
 <script>
     const canvas = document.getElementById('board');
     const ctx = canvas.getContext('2d');
@@ -391,11 +500,32 @@
     const selectedLineStyle = document.getElementById('selectedLineStyle');
     const sitesTableBody = document.getElementById('sitesTable');
     const linksTableBody = document.getElementById('linksTable');
+    const modal = document.getElementById('editModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalName = document.getElementById('modalName');
+    const modalShape = document.getElementById('modalShape');
+    const modalSize = document.getElementById('modalSize');
+    const modalColorSite = document.getElementById('modalColorSite');
+    const modalStart = document.getElementById('modalStart');
+    const modalEnd = document.getElementById('modalEnd');
+    const modalLineWidth = document.getElementById('modalLineWidth');
+    const modalLineStyle = document.getElementById('modalLineStyle');
+    const modalColorLink = document.getElementById('modalColorLink');
+    const modalForm = document.getElementById('modalForm');
+    const closeModalBtn = document.getElementById('closeModal');
+    const cancelModalBtn = document.getElementById('cancelModal');
 
     const modeButtons = {
         select: document.getElementById('modeSelect'),
         addSite: document.getElementById('modeAddSite'),
         addLink: document.getElementById('modeAddLink'),
+    };
+
+    const dragState = {
+        siteId: null,
+        offsetX: 0,
+        offsetY: 0,
+        moved: false,
     };
 
     function setMode(mode) {
@@ -602,6 +732,42 @@
         if (row) row.classList.add('selected-row');
     }
 
+    function toggleModal(type) {
+        document.querySelectorAll('#modalForm [data-type]').forEach(block => {
+            block.style.display = block.dataset.type === type ? 'block' : 'none';
+        });
+    }
+
+    function openEditModal(item) {
+        if (!item) return;
+        modal.dataset.type = item.type;
+        modal.dataset.id = item.id;
+        const isSite = item.type === 'site';
+        const record = isSite ? sites.find(s => s.id === item.id) : links.find(l => l.id === item.id);
+        if (!record) return;
+        modalTitle.textContent = isSite ? `编辑站点 #${record.id}` : `编辑链路 #${record.id}`;
+        modalName.value = record.name || (isSite ? `站点 ${record.id}` : `链路 ${record.id}`);
+        toggleModal(item.type);
+        if (isSite) {
+            modalShape.value = record.shape;
+            modalSize.value = record.size;
+            modalColorSite.value = record.color;
+        } else {
+            modalLineWidth.value = record.lineWidth;
+            modalLineStyle.value = record.lineStyle;
+            modalColorLink.value = record.color;
+            modalStart.innerHTML = sites.map(s => `<option value="${s.id}" ${s.id === record.startId ? 'selected' : ''}>${s.name}</option>`).join('');
+            modalEnd.innerHTML = sites.map(s => `<option value="${s.id}" ${s.id === record.endId ? 'selected' : ''}>${s.name}</option>`).join('');
+        }
+        modal.classList.add('active');
+        modal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeEditModal() {
+        modal.classList.remove('active');
+        modal.setAttribute('aria-hidden', 'true');
+    }
+
     function applySelection() {
         if (!state.selected) return;
         if (state.selected.type === 'site') {
@@ -621,6 +787,41 @@
         draw();
     }
 
+    function applyModalChanges(event) {
+        event.preventDefault();
+        const type = modal.dataset.type;
+        const id = Number(modal.dataset.id);
+        if (!type || !id) return;
+        if (type === 'site') {
+            const site = sites.find(s => s.id === id);
+            if (!site) return;
+            site.name = modalName.value || site.name;
+            site.shape = modalShape.value;
+            site.size = Math.min(Math.max(parseInt(modalSize.value, 10) || site.size, 8), 80);
+            site.color = modalColorSite.value || site.color;
+            setStatus(`已更新站点 #${site.id}`);
+        } else {
+            const link = links.find(l => l.id === id);
+            if (!link) return;
+            const startId = Number(modalStart.value);
+            const endId = Number(modalEnd.value);
+            if (startId === endId) {
+                setStatus('起点与终点不能相同');
+                return;
+            }
+            link.startId = startId;
+            link.endId = endId;
+            link.name = modalName.value || link.name || `链路 ${link.id}`;
+            link.lineWidth = Math.min(Math.max(parseInt(modalLineWidth.value, 10) || link.lineWidth, 1), 10);
+            link.lineStyle = modalLineStyle.value;
+            link.color = modalColorLink.value || link.color;
+            setStatus(`已更新链路 #${link.id}`);
+        }
+        renderTables();
+        draw();
+        closeEditModal();
+    }
+
     function addLink(startSite, endSite) {
         const lineStyle = lineStyleSelect.value;
         const lineWidth = Math.min(Math.max(parseInt(lineWidthInput.value, 10) || 2, 1), 10);
@@ -632,7 +833,52 @@
         setStatus(`已创建链路 ${newLink.id}：${startSite.name} → ${endSite.name}`);
     }
 
+    let suppressClick = false;
+
+    function handleMouseDown(event) {
+        if (state.mode !== 'select') return;
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        const hitSite = findSiteAt(x, y);
+        if (hitSite) {
+            dragState.siteId = hitSite.id;
+            dragState.offsetX = hitSite.x - x;
+            dragState.offsetY = hitSite.y - y;
+            dragState.moved = false;
+            selectItem({ type: 'site', id: hitSite.id });
+        }
+    }
+
+    function handleMouseMove(event) {
+        if (!dragState.siteId) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        const site = sites.find(s => s.id === dragState.siteId);
+        if (!site) return;
+        dragState.moved = true;
+        site.x = Math.min(Math.max(x + dragState.offsetX, 0), width);
+        site.y = Math.min(Math.max(y + dragState.offsetY, 0), height);
+        draw();
+    }
+
+    function handleMouseUp() {
+        if (!dragState.siteId) return;
+        if (dragState.moved) {
+            suppressClick = true;
+            renderTables();
+            setStatus(`已拖动站点 #${dragState.siteId}`);
+        }
+        dragState.siteId = null;
+        dragState.moved = false;
+    }
+
     function handleCanvasClick(event) {
+        if (suppressClick) {
+            suppressClick = false;
+            return;
+        }
         const rect = canvas.getBoundingClientRect();
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
@@ -662,17 +908,22 @@
         const hitSite = findSiteAt(x, y);
         if (hitSite) {
             selectItem({ type: 'site', id: hitSite.id });
+            openEditModal({ type: 'site', id: hitSite.id });
             return;
         }
         const hitLink = findLinkAt(x, y);
         if (hitLink) {
             selectItem({ type: 'link', id: hitLink.id });
+            openEditModal({ type: 'link', id: hitLink.id });
             return;
         }
         selectItem(null);
         setStatus('空白区域被点击，未选中元素。');
     }
 
+    canvas.addEventListener('mousedown', handleMouseDown);
+    canvas.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
     canvas.addEventListener('click', handleCanvasClick);
 
     modeButtons.select.addEventListener('click', () => setMode('select'));
@@ -680,6 +931,13 @@
     modeButtons.addLink.addEventListener('click', () => setMode('addLink'));
 
     document.getElementById('applySelection').addEventListener('click', applySelection);
+
+    modalForm.addEventListener('submit', applyModalChanges);
+    closeModalBtn.addEventListener('click', closeEditModal);
+    cancelModalBtn.addEventListener('click', closeEditModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeEditModal();
+    });
 
     document.getElementById('exportAll').addEventListener('click', () => {
         const exportPayload = {
