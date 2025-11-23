@@ -1,19 +1,1085 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-     <meta charset="UTF-8">
+    <meta charset="UTF-8">
+    <title>微波拓扑管理工具</title>
     <style>
-        /* CSS规则 */
-        body {
-            background-color: #f0f0f0; /* 设置页面背景颜色为浅灰色 */
+        :root {
+            --panel-bg: #ffffff;
+            --panel-border: #d0d7de;
+            --accent: #2563eb;
+            --muted: #6b7280;
+            --canvas-bg: #f8fafc;
         }
-        h1 {
-            color: blue; /* 设置所有<h1>标签的文本颜色为蓝色 */
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+            background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%);
+            color: #0f172a;
+        }
+
+        header {
+            padding: 20px 24px;
+            background: #0f172a;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 20px;
+            letter-spacing: 0.5px;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 16px;
+            padding: 16px;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 10px;
+            padding: 16px;
+            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
+        }
+
+        .panel h2 {
+            margin: 0 0 12px 0;
+            font-size: 16px;
+            color: #0f172a;
+        }
+
+        .panel section + section {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        label {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-size: 13px;
+            color: #334155;
+            margin-bottom: 10px;
+        }
+
+        input[type="text"], select, input[type="number"] {
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            font-size: 14px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input[type="text"]:focus, select:focus, input[type="number"]:focus {
+            border-color: var(--accent);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+        }
+
+        button {
+            padding: 10px 12px;
+            border: none;
+            border-radius: 8px;
+            background: var(--accent);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.1s ease, box-shadow 0.2s ease;
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        button.secondary {
+            background: #0f172a;
+        }
+
+        button.danger {
+            background: #dc2626;
+        }
+
+        .canvas-wrapper {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 10px;
+            padding: 12px;
+            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
+            position: relative;
+        }
+
+        #board {
+            width: 100%;
+            height: 520px;
+            background: var(--canvas-bg);
+            border-radius: 8px;
+            border: 1px dashed #cbd5e1;
+            cursor: crosshair;
+        }
+
+        .hint {
+            font-size: 12px;
+            color: var(--muted);
+            margin: 4px 0 10px 0;
+        }
+
+        .inline {
+            display: flex;
+            gap: 10px;
+        }
+
+        .inline label {
+            flex: 1;
+        }
+
+        .status {
+            font-size: 12px;
+            color: #0f172a;
+            background: #e0f2fe;
+            border: 1px solid #bae6fd;
+            padding: 8px 10px;
+            border-radius: 8px;
+            margin-top: 12px;
+        }
+
+        .export-area {
+            width: 100%;
+            min-height: 140px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            padding: 10px;
+            font-family: "Fira Code", Consolas, monospace;
+            background: #0f172a;
+            color: #e2e8f0;
+            resize: vertical;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            background: #eef2ff;
+            color: #312e81;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 6px 8px;
+            text-align: left;
+        }
+
+        th {
+            background: #f8fafc;
+            color: #0f172a;
+        }
+
+        .tables-wrapper {
+            margin-top: 16px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 10;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+            width: min(420px, 90vw);
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 16px;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .mode-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .muted {
+            color: var(--muted);
+            font-size: 12px;
+        }
+    
+        .selected-row {
+            outline: 2px solid var(--accent);
         }
     </style>
 </head>
 <body>
-    <h1>这是一个标题</h1> <!-- 这个<h1>标签的文本颜色会被设置为蓝色 -->
-    <p>这是一个段落。</p>
+<header>
+    <h1>微波拓扑管理工具</h1>
+    <div class="pill" id="modeIndicator">选择模式</div>
+</header>
+<div class="container">
+    <div class="panel">
+        <h2>工具与默认参数</h2>
+        <section>
+            <div class="mode-buttons">
+                <button id="modeSelect">选择/编辑</button>
+                <button id="modeAddSite">新建站点</button>
+                <button id="modeAddLink">新建链路</button>
+            </div>
+            <p class="hint">选择模式：点击站点或链路即可编辑。新建模式：直接在画布点击即可绘制。</p>
+        </section>
+        <section>
+            <label>
+                默认站点名称
+                <input id="siteName" type="text" placeholder="例如：站点 A" />
+            </label>
+            <div class="inline">
+                <label>
+                    形状
+                    <select id="siteShape">
+                        <option value="circle">圆形</option>
+                        <option value="square">方形</option>
+                        <option value="triangle">三角</option>
+                    </select>
+                </label>
+                <label>
+                    尺寸 (px)
+                    <input id="siteSize" type="number" min="8" max="80" value="28" />
+                </label>
+            </div>
+            <label>
+                填充颜色
+                <input id="siteColor" type="color" value="#2563eb" />
+            </label>
+            <p class="hint">用于新增站点或链路模式中自动生成的节点。</p>
+        </section>
+        <section>
+            <div class="inline">
+                <label>
+                    链路线型
+                    <select id="lineStyle">
+                        <option value="solid">实线</option>
+                        <option value="dashed">虚线</option>
+                        <option value="dotted">点线</option>
+                    </select>
+                </label>
+                <label>
+                    链路粗细 (px)
+                    <input id="lineWidth" type="number" min="1" max="10" value="3" />
+                </label>
+            </div>
+            <label>
+                链路颜色
+                <input id="lineColor" type="color" value="#0f172a" />
+            </label>
+        </section>
+        <section>
+            <h2>选中元素编辑</h2>
+            <div class="muted" id="selectedInfo">未选中元素</div>
+            <label>
+                名称
+                <input id="selectedName" type="text" placeholder="点击画布选择站点或链路" />
+            </label>
+            <div class="inline">
+                <label>
+                    形状 (仅站点)
+                    <select id="selectedShape">
+                        <option value="circle">圆形</option>
+                        <option value="square">方形</option>
+                        <option value="triangle">三角</option>
+                    </select>
+                </label>
+                <label>
+                    尺寸 (仅站点)
+                    <input id="selectedSize" type="number" min="8" max="80" />
+                </label>
+            </div>
+            <div class="inline">
+                <label>
+                    颜色
+                    <input id="selectedColor" type="color" />
+                </label>
+                <label>
+                    链路粗细 (仅链路)
+                    <input id="selectedWidth" type="number" min="1" max="10" />
+                </label>
+            </div>
+            <label>
+                链路线型 (仅链路)
+                <select id="selectedLineStyle">
+                    <option value="solid">实线</option>
+                    <option value="dashed">虚线</option>
+                    <option value="dotted">点线</option>
+                </select>
+            </label>
+            <button id="applySelection">应用修改</button>
+        </section>
+        <section>
+            <h2>导出</h2>
+            <button class="secondary" id="exportAll">一键导出链路与站点</button>
+            <textarea id="exportArea" class="export-area" readonly></textarea>
+        </section>
+        <div class="status" id="status">提示：点击“新建站点/新建链路”后在画布绘制。</div>
+    </div>
+    <div>
+        <div class="canvas-wrapper">
+            <canvas id="board"></canvas>
+        </div>
+        <div class="tables-wrapper">
+            <div class="panel">
+                <h2>站点表</h2>
+                <table>
+                    <thead>
+                    <tr><th>ID</th><th>名称</th><th>形状</th><th>大小</th><th>颜色</th><th>X</th><th>Y</th><th>删除</th></tr>
+                    </thead>
+                    <tbody id="sitesTable"></tbody>
+                </table>
+            </div>
+            <div class="panel">
+                <h2>链路表</h2>
+                <table>
+                    <thead>
+                    <tr><th>ID</th><th>起点</th><th>终点</th><th>线型</th><th>粗细</th><th>颜色</th><th>删除</th></tr>
+                    </thead>
+                    <tbody id="linksTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="editModal" class="modal" aria-hidden="true">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 id="modalTitle">编辑元素</h3>
+            <button id="closeModal" class="secondary">关闭</button>
+        </div>
+        <form id="modalForm">
+            <label>
+                名称
+                <input id="modalName" type="text" required />
+            </label>
+            <div class="inline" data-type="site">
+                <label>
+                    形状
+                    <select id="modalShape">
+                        <option value="circle">圆形</option>
+                        <option value="square">方形</option>
+                        <option value="triangle">三角</option>
+                    </select>
+                </label>
+                <label>
+                    尺寸 (px)
+                    <input id="modalSize" type="number" min="8" max="80" />
+                </label>
+            </div>
+            <label data-type="site">
+                填充颜色
+                <input id="modalColorSite" type="color" />
+            </label>
+            <div data-type="link">
+                <div class="inline">
+                    <label>
+                        起点
+                        <select id="modalStart"></select>
+                    </label>
+                    <label>
+                        终点
+                        <select id="modalEnd"></select>
+                    </label>
+                </div>
+                <div class="inline">
+                    <label>
+                        粗细 (px)
+                        <input id="modalLineWidth" type="number" min="1" max="10" />
+                    </label>
+                    <label>
+                        线型
+                        <select id="modalLineStyle">
+                            <option value="solid">实线</option>
+                            <option value="dashed">虚线</option>
+                            <option value="dotted">点线</option>
+                        </select>
+                    </label>
+                </div>
+                <label>
+                    颜色
+                    <input id="modalColorLink" type="color" />
+                </label>
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="cancelModal" class="secondary">取消</button>
+                <button type="submit">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+    const canvas = document.getElementById('board');
+    const ctx = canvas.getContext('2d');
+    let width = canvas.clientWidth;
+    let height = canvas.clientHeight;
+    canvas.width = width;
+    canvas.height = height;
+
+    const sites = [];
+    const links = [];
+
+    const state = {
+        mode: 'select',
+        addLinkStep: null,
+        selected: null,
+    };
+
+    const modeIndicator = document.getElementById('modeIndicator');
+    const siteNameInput = document.getElementById('siteName');
+    const siteShapeInput = document.getElementById('siteShape');
+    const siteSizeInput = document.getElementById('siteSize');
+    const siteColorInput = document.getElementById('siteColor');
+    const lineStyleSelect = document.getElementById('lineStyle');
+    const lineWidthInput = document.getElementById('lineWidth');
+    const lineColorInput = document.getElementById('lineColor');
+    const exportArea = document.getElementById('exportArea');
+    const statusEl = document.getElementById('status');
+    const selectedInfo = document.getElementById('selectedInfo');
+    const selectedName = document.getElementById('selectedName');
+    const selectedShape = document.getElementById('selectedShape');
+    const selectedSize = document.getElementById('selectedSize');
+    const selectedColor = document.getElementById('selectedColor');
+    const selectedWidth = document.getElementById('selectedWidth');
+    const selectedLineStyle = document.getElementById('selectedLineStyle');
+    const sitesTableBody = document.getElementById('sitesTable');
+    const linksTableBody = document.getElementById('linksTable');
+    const modal = document.getElementById('editModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalName = document.getElementById('modalName');
+    const modalShape = document.getElementById('modalShape');
+    const modalSize = document.getElementById('modalSize');
+    const modalColorSite = document.getElementById('modalColorSite');
+    const modalStart = document.getElementById('modalStart');
+    const modalEnd = document.getElementById('modalEnd');
+    const modalLineWidth = document.getElementById('modalLineWidth');
+    const modalLineStyle = document.getElementById('modalLineStyle');
+    const modalColorLink = document.getElementById('modalColorLink');
+    const modalForm = document.getElementById('modalForm');
+    const closeModalBtn = document.getElementById('closeModal');
+    const cancelModalBtn = document.getElementById('cancelModal');
+
+    const modeButtons = {
+        select: document.getElementById('modeSelect'),
+        addSite: document.getElementById('modeAddSite'),
+        addLink: document.getElementById('modeAddLink'),
+    };
+
+    const dragState = {
+        siteId: null,
+        offsetX: 0,
+        offsetY: 0,
+        moved: false,
+    };
+
+    function setMode(mode) {
+        state.mode = mode;
+        state.addLinkStep = null;
+        modeIndicator.textContent = mode === 'select' ? '选择/编辑模式' : (mode === 'addSite' ? '新建站点模式' : '新建链路模式');
+        setStatus(mode === 'select' ? '点击站点或链路进行编辑，或使用表格直接修改。' : '在画布点击以绘制。');
+    }
+
+    function updateCanvasSize() {
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        width = rect.width;
+        height = rect.height;
+        draw();
+    }
+
+    window.addEventListener('resize', updateCanvasSize);
+
+    function setStatus(message) {
+        statusEl.textContent = message;
+    }
+
+    function updateSelectors() {
+        // kept for compatibility when we extend more selectors later
+    }
+
+    function drawSite(site) {
+        ctx.save();
+        ctx.translate(site.x, site.y);
+        ctx.fillStyle = site.color;
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 2;
+        const size = site.size;
+        switch (site.shape) {
+            case 'circle':
+                ctx.beginPath();
+                ctx.arc(0, 0, size / 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                break;
+            case 'square':
+                ctx.beginPath();
+                ctx.rect(-size / 2, -size / 2, size, size);
+                ctx.fill();
+                ctx.stroke();
+                break;
+            case 'triangle':
+                ctx.beginPath();
+                ctx.moveTo(0, -size / 2);
+                ctx.lineTo(-size / 2, size / 2);
+                ctx.lineTo(size / 2, size / 2);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                break;
+        }
+        ctx.fillStyle = '#0f172a';
+        ctx.font = '12px "Segoe UI"';
+        ctx.textAlign = 'center';
+        ctx.fillText(site.name, 0, size);
+        ctx.restore();
+    }
+
+    function drawLink(link) {
+        const start = sites.find(s => s.id === link.startId);
+        const end = sites.find(s => s.id === link.endId);
+        if (!start || !end) return;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(start.x, start.y);
+        ctx.lineTo(end.x, end.y);
+        ctx.strokeStyle = link.color;
+        ctx.lineWidth = link.lineWidth;
+        if (link.lineStyle === 'dashed') {
+            ctx.setLineDash([10, 6]);
+        } else if (link.lineStyle === 'dotted') {
+            ctx.setLineDash([3, 6]);
+        } else {
+            ctx.setLineDash([]);
+        }
+        ctx.stroke();
+
+        if (state.selected && state.selected.type === 'link' && state.selected.id === link.id) {
+            ctx.lineWidth = link.lineWidth + 2;
+            ctx.strokeStyle = 'rgba(37, 99, 235, 0.35)';
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, width, height);
+        links.forEach(drawLink);
+        sites.forEach(site => {
+            if (state.selected && state.selected.type === 'site' && state.selected.id === site.id) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(37, 99, 235, 0.6)';
+                ctx.lineWidth = 3;
+                ctx.arc(site.x, site.y, site.size, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            }
+            drawSite(site);
+        });
+    }
+
+    function generateId(list) {
+        return list.length ? Math.max(...list.map(item => item.id)) + 1 : 1;
+    }
+
+    function buildSitePayload(x, y) {
+        const name = siteNameInput.value.trim() || `站点 ${sites.length + 1}`;
+        const shape = siteShapeInput.value;
+        const size = Math.min(Math.max(parseInt(siteSizeInput.value, 10) || 28, 8), 80);
+        const color = siteColorInput.value || '#2563eb';
+        return { id: generateId(sites), name, shape, size, x, y, color };
+    }
+
+    function placeSite(x, y, preset) {
+        const payload = preset || buildSitePayload(x, y);
+        sites.push(payload);
+        draw();
+        renderTables();
+        setStatus(`已添加站点 ${payload.name}，ID: ${payload.id}`);
+        return payload;
+    }
+
+    function findSiteAt(x, y) {
+        const tolerance = 18;
+        for (let i = sites.length - 1; i >= 0; i -= 1) {
+            const site = sites[i];
+            const dist = Math.hypot(site.x - x, site.y - y);
+            if (dist <= Math.max(site.size / 2, tolerance)) {
+                return site;
+            }
+        }
+        return null;
+    }
+
+    function findLinkAt(x, y) {
+        const tolerance = 6;
+        for (let i = links.length - 1; i >= 0; i -= 1) {
+            const link = links[i];
+            const start = sites.find(s => s.id === link.startId);
+            const end = sites.find(s => s.id === link.endId);
+            if (!start || !end) continue;
+            const dx = end.x - start.x;
+            const dy = end.y - start.y;
+            const length = Math.hypot(dx, dy);
+            if (length === 0) continue;
+            const t = ((x - start.x) * dx + (y - start.y) * dy) / (length * length);
+            if (t < 0 || t > 1) continue;
+            const projX = start.x + t * dx;
+            const projY = start.y + t * dy;
+            const distance = Math.hypot(projX - x, projY - y);
+            if (distance <= tolerance + link.lineWidth) {
+                return link;
+            }
+        }
+        return null;
+    }
+
+    function selectItem(item) {
+        state.selected = item ? { type: item.type, id: item.id } : null;
+        if (!item) {
+            selectedInfo.textContent = '未选中元素';
+            selectedName.value = '';
+            selectedColor.value = '#2563eb';
+            selectedSize.value = '';
+            selectedWidth.value = '';
+            return;
+        }
+        selectedInfo.textContent = `${item.type === 'site' ? '站点' : '链路'} #${item.id}`;
+        if (item.type === 'site') {
+            const site = sites.find(s => s.id === item.id);
+            selectedName.value = site.name;
+            selectedShape.value = site.shape;
+            selectedSize.value = site.size;
+            selectedColor.value = site.color;
+            selectedWidth.value = '';
+            selectedLineStyle.value = 'solid';
+        } else {
+            const link = links.find(l => l.id === item.id);
+            selectedName.value = link.name || `链路 ${link.id}`;
+            selectedColor.value = link.color;
+            selectedWidth.value = link.lineWidth;
+            selectedLineStyle.value = link.lineStyle;
+            selectedShape.value = 'circle';
+            selectedSize.value = '';
+        }
+        draw();
+        highlightTables();
+    }
+
+    function highlightTables() {
+        [...sitesTableBody.querySelectorAll('tr'), ...linksTableBody.querySelectorAll('tr')].forEach(tr => tr.classList.remove('selected-row'));
+        if (!state.selected) return;
+        const selector = state.selected.type === 'site' ? `[data-site-row="${state.selected.id}"]` : `[data-link-row="${state.selected.id}"]`;
+        const row = document.querySelector(selector);
+        if (row) row.classList.add('selected-row');
+    }
+
+    function toggleModal(type) {
+        document.querySelectorAll('#modalForm [data-type]').forEach(block => {
+            block.style.display = block.dataset.type === type ? 'block' : 'none';
+        });
+    }
+
+    function openEditModal(item) {
+        if (!item) return;
+        modal.dataset.type = item.type;
+        modal.dataset.id = item.id;
+        const isSite = item.type === 'site';
+        const record = isSite ? sites.find(s => s.id === item.id) : links.find(l => l.id === item.id);
+        if (!record) return;
+        modalTitle.textContent = isSite ? `编辑站点 #${record.id}` : `编辑链路 #${record.id}`;
+        modalName.value = record.name || (isSite ? `站点 ${record.id}` : `链路 ${record.id}`);
+        toggleModal(item.type);
+        if (isSite) {
+            modalShape.value = record.shape;
+            modalSize.value = record.size;
+            modalColorSite.value = record.color;
+        } else {
+            modalLineWidth.value = record.lineWidth;
+            modalLineStyle.value = record.lineStyle;
+            modalColorLink.value = record.color;
+            modalStart.innerHTML = sites.map(s => `<option value="${s.id}" ${s.id === record.startId ? 'selected' : ''}>${s.name}</option>`).join('');
+            modalEnd.innerHTML = sites.map(s => `<option value="${s.id}" ${s.id === record.endId ? 'selected' : ''}>${s.name}</option>`).join('');
+        }
+        modal.classList.add('active');
+        modal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeEditModal() {
+        modal.classList.remove('active');
+        modal.setAttribute('aria-hidden', 'true');
+    }
+
+    function applySelection() {
+        if (!state.selected) return;
+        if (state.selected.type === 'site') {
+            const site = sites.find(s => s.id === state.selected.id);
+            site.name = selectedName.value || site.name;
+            site.shape = selectedShape.value;
+            site.size = Math.min(Math.max(parseInt(selectedSize.value, 10) || site.size, 8), 80);
+            site.color = selectedColor.value || site.color;
+        } else {
+            const link = links.find(l => l.id === state.selected.id);
+            link.name = selectedName.value || link.name || `链路 ${link.id}`;
+            link.lineWidth = Math.min(Math.max(parseInt(selectedWidth.value, 10) || link.lineWidth, 1), 10);
+            link.color = selectedColor.value || link.color;
+            link.lineStyle = selectedLineStyle.value;
+        }
+        renderTables();
+        draw();
+    }
+
+    function applyModalChanges(event) {
+        event.preventDefault();
+        const type = modal.dataset.type;
+        const id = Number(modal.dataset.id);
+        if (!type || !id) return;
+        if (type === 'site') {
+            const site = sites.find(s => s.id === id);
+            if (!site) return;
+            site.name = modalName.value || site.name;
+            site.shape = modalShape.value;
+            site.size = Math.min(Math.max(parseInt(modalSize.value, 10) || site.size, 8), 80);
+            site.color = modalColorSite.value || site.color;
+            setStatus(`已更新站点 #${site.id}`);
+        } else {
+            const link = links.find(l => l.id === id);
+            if (!link) return;
+            const startId = Number(modalStart.value);
+            const endId = Number(modalEnd.value);
+            if (startId === endId) {
+                setStatus('起点与终点不能相同');
+                return;
+            }
+            link.startId = startId;
+            link.endId = endId;
+            link.name = modalName.value || link.name || `链路 ${link.id}`;
+            link.lineWidth = Math.min(Math.max(parseInt(modalLineWidth.value, 10) || link.lineWidth, 1), 10);
+            link.lineStyle = modalLineStyle.value;
+            link.color = modalColorLink.value || link.color;
+            setStatus(`已更新链路 #${link.id}`);
+        }
+        renderTables();
+        draw();
+        closeEditModal();
+    }
+
+    function addLink(startSite, endSite) {
+        const lineStyle = lineStyleSelect.value;
+        const lineWidth = Math.min(Math.max(parseInt(lineWidthInput.value, 10) || 2, 1), 10);
+        const color = lineColorInput.value || '#0f172a';
+        const newLink = { id: generateId(links), startId: startSite.id, endId: endSite.id, lineStyle, lineWidth, color, name: `链路 ${links.length + 1}` };
+        links.push(newLink);
+        draw();
+        renderTables();
+        setStatus(`已创建链路 ${newLink.id}：${startSite.name} → ${endSite.name}`);
+    }
+
+    let suppressClick = false;
+
+    function handleMouseDown(event) {
+        if (state.mode !== 'select') return;
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        const hitSite = findSiteAt(x, y);
+        if (hitSite) {
+            dragState.siteId = hitSite.id;
+            dragState.offsetX = hitSite.x - x;
+            dragState.offsetY = hitSite.y - y;
+            dragState.moved = false;
+            selectItem({ type: 'site', id: hitSite.id });
+        }
+    }
+
+    function handleMouseMove(event) {
+        if (!dragState.siteId) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        const site = sites.find(s => s.id === dragState.siteId);
+        if (!site) return;
+        dragState.moved = true;
+        site.x = Math.min(Math.max(x + dragState.offsetX, 0), width);
+        site.y = Math.min(Math.max(y + dragState.offsetY, 0), height);
+        draw();
+    }
+
+    function handleMouseUp() {
+        if (!dragState.siteId) return;
+        if (dragState.moved) {
+            suppressClick = true;
+            renderTables();
+            setStatus(`已拖动站点 #${dragState.siteId}`);
+        }
+        dragState.siteId = null;
+        dragState.moved = false;
+    }
+
+    function handleCanvasClick(event) {
+        if (suppressClick) {
+            suppressClick = false;
+            return;
+        }
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        if (state.mode === 'addSite') {
+            placeSite(x, y);
+            return;
+        }
+
+        if (state.mode === 'addLink') {
+            const site = findSiteAt(x, y) || placeSite(x, y);
+            if (!state.addLinkStep) {
+                state.addLinkStep = site;
+                setStatus(`已选择起点：${site.name}，请点击终点。`);
+            } else {
+                const endSite = findSiteAt(x, y) || placeSite(x, y);
+                if (endSite.id === state.addLinkStep.id) {
+                    setStatus('终点不能与起点相同，请重新选择。');
+                    return;
+                }
+                addLink(state.addLinkStep, endSite);
+                state.addLinkStep = null;
+            }
+            return;
+        }
+
+        const hitSite = findSiteAt(x, y);
+        if (hitSite) {
+            selectItem({ type: 'site', id: hitSite.id });
+            openEditModal({ type: 'site', id: hitSite.id });
+            return;
+        }
+        const hitLink = findLinkAt(x, y);
+        if (hitLink) {
+            selectItem({ type: 'link', id: hitLink.id });
+            openEditModal({ type: 'link', id: hitLink.id });
+            return;
+        }
+        selectItem(null);
+        setStatus('空白区域被点击，未选中元素。');
+    }
+
+    canvas.addEventListener('mousedown', handleMouseDown);
+    canvas.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    canvas.addEventListener('click', handleCanvasClick);
+
+    modeButtons.select.addEventListener('click', () => setMode('select'));
+    modeButtons.addSite.addEventListener('click', () => setMode('addSite'));
+    modeButtons.addLink.addEventListener('click', () => setMode('addLink'));
+
+    document.getElementById('applySelection').addEventListener('click', applySelection);
+
+    modalForm.addEventListener('submit', applyModalChanges);
+    closeModalBtn.addEventListener('click', closeEditModal);
+    cancelModalBtn.addEventListener('click', closeEditModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeEditModal();
+    });
+
+    document.getElementById('exportAll').addEventListener('click', () => {
+        const exportPayload = {
+            generatedAt: new Date().toISOString(),
+            siteCount: sites.length,
+            linkCount: links.length,
+            sites: sites.map(s => ({
+                id: s.id,
+                name: s.name,
+                shape: s.shape,
+                size: s.size,
+                color: s.color,
+                x: Math.round(s.x),
+                y: Math.round(s.y),
+            })),
+            links: links.map(l => ({
+                id: l.id,
+                name: l.name || `链路 ${l.id}`,
+                startId: l.startId,
+                endId: l.endId,
+                lineStyle: l.lineStyle,
+                lineWidth: l.lineWidth,
+                color: l.color,
+            })),
+        };
+        const json = JSON.stringify(exportPayload, null, 2);
+        exportArea.value = json;
+        exportArea.focus();
+        exportArea.select();
+        setStatus('导出已生成，可复制。');
+    });
+
+    function renderTables() {
+        sitesTableBody.innerHTML = '';
+        sites.forEach(site => {
+            const tr = document.createElement('tr');
+            tr.dataset.siteRow = site.id;
+            tr.innerHTML = `
+                <td>${site.id}</td>
+                <td><input data-field="name" value="${site.name}"></td>
+                <td>
+                    <select data-field="shape">
+                        <option value="circle" ${site.shape === 'circle' ? 'selected' : ''}>圆形</option>
+                        <option value="square" ${site.shape === 'square' ? 'selected' : ''}>方形</option>
+                        <option value="triangle" ${site.shape === 'triangle' ? 'selected' : ''}>三角</option>
+                    </select>
+                </td>
+                <td><input data-field="size" type="number" min="8" max="80" value="${site.size}"></td>
+                <td><input data-field="color" type="color" value="${site.color}"></td>
+                <td><input data-field="x" type="number" value="${Math.round(site.x)}"></td>
+                <td><input data-field="y" type="number" value="${Math.round(site.y)}"></td>
+                <td><button data-action="delete" class="danger">删除</button></td>
+            `;
+            tr.addEventListener('click', () => selectItem({ type: 'site', id: site.id }));
+            tr.querySelectorAll('input, select').forEach(input => {
+                input.addEventListener('change', (e) => {
+                    const field = input.dataset.field;
+                    if (field === 'name') site.name = input.value || site.name;
+                    if (field === 'shape') site.shape = input.value;
+                    if (field === 'size') site.size = Math.min(Math.max(parseInt(input.value, 10) || site.size, 8), 80);
+                    if (field === 'color') site.color = input.value || site.color;
+                    if (field === 'x') site.x = parseFloat(input.value) || site.x;
+                    if (field === 'y') site.y = parseFloat(input.value) || site.y;
+                    draw();
+                });
+            });
+            tr.querySelector('[data-action="delete"]').addEventListener('click', (e) => {
+                e.stopPropagation();
+                removeSite(site.id);
+            });
+            sitesTableBody.appendChild(tr);
+        });
+
+        linksTableBody.innerHTML = '';
+        links.forEach(link => {
+            const tr = document.createElement('tr');
+            tr.dataset.linkRow = link.id;
+            tr.innerHTML = `
+                <td>${link.id}</td>
+                <td><select data-field="startId">${sites.map(s => `<option value="${s.id}" ${s.id === link.startId ? 'selected' : ''}>${s.name}</option>`).join('')}</select></td>
+                <td><select data-field="endId">${sites.map(s => `<option value="${s.id}" ${s.id === link.endId ? 'selected' : ''}>${s.name}</option>`).join('')}</select></td>
+                <td>
+                    <select data-field="lineStyle">
+                        <option value="solid" ${link.lineStyle === 'solid' ? 'selected' : ''}>实线</option>
+                        <option value="dashed" ${link.lineStyle === 'dashed' ? 'selected' : ''}>虚线</option>
+                        <option value="dotted" ${link.lineStyle === 'dotted' ? 'selected' : ''}>点线</option>
+                    </select>
+                </td>
+                <td><input data-field="lineWidth" type="number" min="1" max="10" value="${link.lineWidth}"></td>
+                <td><input data-field="color" type="color" value="${link.color}"></td>
+                <td><button data-action="delete" class="danger">删除</button></td>
+            `;
+            tr.addEventListener('click', () => selectItem({ type: 'link', id: link.id }));
+            tr.querySelectorAll('input, select').forEach(input => {
+                input.addEventListener('change', () => {
+                    const field = input.dataset.field;
+                    if (field === 'startId') link.startId = Number(input.value);
+                    if (field === 'endId') link.endId = Number(input.value);
+                    if (field === 'lineStyle') link.lineStyle = input.value;
+                    if (field === 'lineWidth') link.lineWidth = Math.min(Math.max(parseInt(input.value, 10) || link.lineWidth, 1), 10);
+                    if (field === 'color') link.color = input.value || link.color;
+                    draw();
+                });
+            });
+            tr.querySelector('[data-action="delete"]').addEventListener('click', (e) => {
+                e.stopPropagation();
+                removeLink(link.id);
+            });
+            linksTableBody.appendChild(tr);
+        });
+        highlightTables();
+    }
+
+    function removeSite(siteId) {
+        const idx = sites.findIndex(s => s.id === siteId);
+        if (idx >= 0) {
+            sites.splice(idx, 1);
+            for (let i = links.length - 1; i >= 0; i -= 1) {
+                if (links[i].startId === siteId || links[i].endId === siteId) {
+                    links.splice(i, 1);
+                }
+            }
+            renderTables();
+            draw();
+            setStatus(`已删除站点 #${siteId} 及其关联链路。`);
+        }
+    }
+
+    function removeLink(linkId) {
+        const idx = links.findIndex(l => l.id === linkId);
+        if (idx >= 0) {
+            links.splice(idx, 1);
+            renderTables();
+            draw();
+            setStatus(`已删除链路 #${linkId}。`);
+        }
+    }
+
+    window.addEventListener('resize', updateCanvasSize);
+    setMode('select');
+    renderTables();
+    draw();
+</script>
 </body>
 </html>
